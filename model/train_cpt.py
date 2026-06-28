@@ -78,7 +78,7 @@ def add_lora_adapters(model):
         lora_alpha=32,
         lora_dropout=0,
         bias="none",
-        use_gradient_checkpointing="unsloth",
+        use_gradient_checkpointing=True,
         random_state=SEED,
         use_rslora=False,
     )
@@ -128,7 +128,6 @@ def configure_trainer(model, tokenizer, train_dataset, val_dataset):
 
     trainer = UnslothTrainer(
         model=model,
-        tokenizer=tokenizer,
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
         args=training_args,
