@@ -1,0 +1,2 @@
+train_file: ./dataset/data/train.txt
+val_file: ./dataset/data/val.txt
