@@ -1,2 +1,5 @@
 train_file: ./dataset/data/train.txt
 val_file: ./dataset/data/val.txt
+
+CHUNK_SIZE: 256
+OVERLAP: 0.2
