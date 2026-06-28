@@ -64,6 +64,7 @@ def eval_pubmedqa(model, tokenizer, max_samples=None):
     results = []
 
     for item in tqdm(ds, desc="PubMedQA"):
+        item = dict(item)
         question = item["question"]
         context = " ".join(item["context"]["contexts"])
         answer = item["final_decision"]
@@ -72,7 +73,7 @@ def eval_pubmedqa(model, tokenizer, max_samples=None):
         choices = ["yes", "no", "maybe"]
         log_probs = choice_log_probs(model, tokenizer, prompt, choices)
 
-        predicted = choices[torch.tensor(log_probs).argmax().item()]
+        predicted = choices[int(torch.tensor(log_probs).argmax().item())]
         is_correct = predicted == answer.lower()
         if is_correct:
             correct += 1
@@ -105,6 +106,7 @@ def eval_medmcqa(model, tokenizer, max_samples=None):
     choice_map = {0: "A", 1: "B", 2: "C", 3: "D"}
 
     for item in tqdm(ds, desc="MedMCQA"):
+        item = dict(item)
         question = item["question"]
         opts = [item["opa"], item["opb"], item["opc"], item["opd"]]
         correct_idx = item["cop"] if item["cop"] is not None else item["correct"]
@@ -114,7 +116,7 @@ def eval_medmcqa(model, tokenizer, max_samples=None):
         choices = ["A", "B", "C", "D"]
         log_probs = choice_log_probs(model, tokenizer, prompt, choices)
 
-        predicted = choices[torch.tensor(log_probs).argmax().item()]
+        predicted = choices[int(torch.tensor(log_probs).argmax().item())]
         is_correct = predicted == true_answer
         if is_correct:
             correct += 1
@@ -145,6 +147,7 @@ def eval_medqa(model, tokenizer, max_samples=None):
     choice_labels = ["A", "B", "C", "D", "E"]
 
     for item in tqdm(ds, desc="MedQA"):
+        item = dict(item)
         question = item["question"]
         options = item["options"]
         answer_key = item["answer"].strip().upper()
@@ -159,7 +162,7 @@ def eval_medqa(model, tokenizer, max_samples=None):
         prompt = "\n".join(prompt_parts) + "\nAnswer:"
 
         log_probs = choice_log_probs(model, tokenizer, prompt, valid_labels)
-        predicted = valid_labels[torch.tensor(log_probs).argmax().item()]
+        predicted = valid_labels[int(torch.tensor(log_probs).argmax().item())]
         is_correct = predicted == answer_key
         if is_correct:
             correct += 1
@@ -189,6 +192,7 @@ def eval_medication_qa(model, tokenizer, max_samples=None):
     results = []
 
     for item in tqdm(ds, desc="MedicationQA"):
+        item = dict(item)
         question = item["question"]
         answer = item["answer"]
         choices_list = item.get("choices", [])
@@ -199,7 +203,7 @@ def eval_medication_qa(model, tokenizer, max_samples=None):
         prompt = f"Question: {question}\nAnswer:"
 
         log_probs = choice_log_probs(model, tokenizer, prompt, choices)
-        predicted = choices[torch.tensor(log_probs).argmax().item()]
+        predicted = choices[int(torch.tensor(log_probs).argmax().item())]
         is_correct = predicted.lower().strip() == answer.lower().strip()
         if is_correct:
             correct += 1
@@ -229,6 +233,7 @@ def eval_bioasq(model, tokenizer, max_samples=None):
     results = []
 
     for item in tqdm(ds, desc="BioASQ"):
+        item = dict(item)
         question = item["question"]
         type_ = item.get("type", "")
         if type_ != "yesno":
@@ -244,7 +249,7 @@ def eval_bioasq(model, tokenizer, max_samples=None):
         choices = ["yes", "no"]
         log_probs = choice_log_probs(model, tokenizer, prompt, choices)
 
-        predicted = choices[torch.tensor(log_probs).argmax().item()]
+        predicted = choices[int(torch.tensor(log_probs).argmax().item())]
         is_correct = predicted == true_label
         if is_correct:
             correct += 1
