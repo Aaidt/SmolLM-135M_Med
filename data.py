@@ -30,9 +30,9 @@ TOTAL = 10_000
 tokenizer = AutoTokenizer.from_pretrained("HuggingFaceTB/SmolLM-135M")
 
 if data_file.exists() and data_file.stat().st_size > 0:
-    print(f"[1] dataset file already exists. Skipping dataset streaming")
+    print(f"[1] dataset file already exists. Skipping dataset streaming\n")
 else:
-    print(f"[1] Creating dataset files at {data_file}...")
+    print(f"[1] Creating dataset files at {data_file}...\n")
 
     datasets = [
         ("PubMed Abstracts", lambda: load_dataset("uiyunkim-hub/pubmed-abstract", split="train", streaming=True), "abstract", PUBMED_ABSTRACT_DOCS),
@@ -56,7 +56,10 @@ else:
                     total_pbar.update(1)
                 inner_pbar.close()
 
-print(f"[2] Lets start chunking this data to pass it to Unsloth trainer...")
+print(f"[2] Lets start chunking this data to pass it to Unsloth trainer...\n")
+total_docs  = 0
+discarded_docs = 0
+kept_docs = 0
 
 if train_file.exists() and val_file.exists() and train_file.stat().st_size > 0 and val_file.stat().st_size > 0:
     print(f"training and validation datasets already created...Done!!")
@@ -64,12 +67,17 @@ else:
     with open(train_file, "w") as train, open(val_file, "w") as val:
         with open(data_file, "r") as f:
             for line in f:
+                total_docs += 1
                 line = line.strip()
                 if not line:
                     continue
                 ids = tokenizer.encode(line, add_special_tokens=False)
+                
                 if len(ids) < CHUNK_SIZE:
+                    discarded_docs += 1
                     continue
+
+                kept_docs += 1
 
                 out = val if random.random() < SPLIT else train
                 step = CHUNK_SIZE - OVERLAP
@@ -81,7 +89,11 @@ else:
 
                     out.write(tokenizer.decode(chunk) + "\n")
 
-print(f"[3] Converting the dataset into Dataset format for Unsloth...")
+print(f"Total: {total_docs}")                    
+print(f"kept: {kept_docs}")
+print(f"Discarded: {discarded_docs}")
+
+print(f"[3] Converting the dataset into Dataset format for Unsloth...\n")
 
 datasets = load_dataset(
     "text",

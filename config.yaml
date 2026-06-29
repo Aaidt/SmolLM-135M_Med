@@ -3,7 +3,7 @@ data_file: ./data/dataset.txt
 train_file: ./data/train.txt
 val_file: ./data/val.txt
 
-CHUNK_SIZE: 1024
+CHUNK_SIZE: 512
 OVERLAP: 128
 
 SEED: 42

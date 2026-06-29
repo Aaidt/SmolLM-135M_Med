@@ -1,58 +1,17 @@
 import torch
 from pathlib import Path
-from datasets import Dataset
+from data import train_ds, val_ds
 from unsloth import FastLanguageModel
 from unsloth.trainer import UnslothTrainer, UnslothTrainingArguments
 from omegaconf import OmegaConf
 
-train_cfg = OmegaConf.load("config/train.yaml")
-data_cfg = OmegaConf.load("config/data.yaml")
+cfg = OmegaConf.load("config.yaml")
 
-SEED = train_cfg.seed
-MAX_SEQ_LENGTH = train_cfg.MAX_SEQ_LENGTH
-MODEL_NAME = train_cfg.MODEL_NAME
+SEED = cfg.seed
+MAX_SEQ_LENGTH = cfg.MAX_SEQ_LENGTH
+MODEL_NAME = cfg.MODEL_NAME
+
 DTYPE = torch.bfloat16 if torch.cuda.is_available() else torch.float32
-
-TRAIN_FILE = data_cfg.train_file
-VAL_FILE = data_cfg.val_file
-CHUNK_SIZE = data_cfg.chunk_size
-OVERLAP = data_cfg.overlap
-
-
-def chunk_texts(texts, chunk_size=CHUNK_SIZE, overlap=OVERLAP):
-    step = int(chunk_size * (1 - overlap))
-    all_chunks = []
-    for text in texts:
-        words = text.split()
-        for i in range(0, len(words), step):
-            chunk = words[i:i + chunk_size]
-            if len(chunk) > 50:
-                all_chunks.append(" ".join(chunk))
-    return all_chunks
-
-
-def load_chunked_dataset():
-    print("[1/5] Loading and chunking dataset ...")
-    if not TRAIN_FILE.exists() or not VAL_FILE.exists():
-        raise FileNotFoundError(
-            "Data files not found. Run `uv run python dataset/load.py` first."
-        )
-
-    with open(TRAIN_FILE) as f:
-        train_lines = f.readlines()
-    with open(VAL_FILE) as f:
-        val_lines = f.readlines()
-
-    print(f"  Raw lines: {len(train_lines):>8,} train, {len(val_lines):>8,} val")
-
-    train_chunks = chunk_texts(train_lines)
-    val_chunks = chunk_texts(val_lines)
-
-    train_dataset = Dataset.from_dict({"text": train_chunks})
-    val_dataset = Dataset.from_dict({"text": val_chunks})
-
-    print(f"  Chunked:   {len(train_dataset):>8,} train, {len(val_dataset):>8,} val")
-    return train_dataset, val_dataset
 
 
 def load_model():
