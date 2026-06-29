@@ -58,37 +58,40 @@ else:
 
 print(f"[2] Lets start chunking this data to pass it to Unsloth trainer...")
 
-with open(train_file, "w") as train, open(val_file, "w") as val:
-    with open(data_file, "r") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            ids = tokenizer.encode(line, add_special_tokens=False)
-            if len(ids) < CHUNK_SIZE:
-                continue
-
-            out = val if random.random() < SPLIT else train
-            for start in range(0, len(ids), CHUNK_SIZE - OVERLAP):
-                chunk = ids[start : start + CHUNK_SIZE]
-
-                if len(chunk) < CHUNK_SIZE:
+if train_file.exists() and val_file.exists() and train_file.stat().st_size > 0 and val_file.stat().st_size > 0:
+    print(f"training and validation datasets already created...Done!!")
+else:
+    with open(train_file, "w") as train, open(val_file, "w") as val:
+        with open(data_file, "r") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                ids = tokenizer.encode(line, add_special_tokens=False)
+                if len(ids) < CHUNK_SIZE:
                     continue
 
-                out.write(tokenizer.decode(chunk) + "\n")
+                out = val if random.random() < SPLIT else train
+                step = CHUNK_SIZE - OVERLAP
+                for start in range(0, len(ids) - CHUNK_SIZE + 1, step):
+                    chunk = ids[start : start + CHUNK_SIZE]
+
+                    if len(chunk) < CHUNK_SIZE:
+                        continue
+
+                    out.write(tokenizer.decode(chunk) + "\n")
 
 print(f"[3] Converting the dataset into Dataset format for Unsloth...")
 
-train_ds = load_dataset(
+datasets = load_dataset(
     "text",
-    data_files=str(train_file),
-    split="train"
+    data_files={
+        "train": str(train_file),
+        "validation": str(val_file),
+    },
 )
 
-val_ds = load_dataset(
-    "text",
-    data_files=str(val_file),
-    split="train"
-)
+train_ds = datasets["train"]
+val_ds = datasets["validation"]
 
 print(f"Dataset phase completed")
