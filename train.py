@@ -3,16 +3,20 @@ from pathlib import Path
 from datasets import Dataset
 from unsloth import FastLanguageModel
 from unsloth.trainer import UnslothTrainer, UnslothTrainingArguments
+from omegaconf import OmegaConf
 
-SEED = 42
-MAX_SEQ_LENGTH = 512
-MODEL_NAME = "HuggingFaceTB/SmolLM-135M"
+train_cfg = OmegaConf.load("config/train.yaml")
+data_cfg = OmegaConf.load("config/data.yaml")
+
+SEED = train_cfg.seed
+MAX_SEQ_LENGTH = train_cfg.MAX_SEQ_LENGTH
+MODEL_NAME = train_cfg.MODEL_NAME
 DTYPE = torch.bfloat16 if torch.cuda.is_available() else torch.float32
 
-TRAIN_FILE = Path("dataset/data/train.txt")
-VAL_FILE = Path("dataset/data/val.txt")
-CHUNK_SIZE = 256
-OVERLAP = 0.2
+TRAIN_FILE = data_cfg.train_file
+VAL_FILE = data_cfg.val_file
+CHUNK_SIZE = data_cfg.chunk_size
+OVERLAP = data_cfg.overlap
 
 
 def chunk_texts(texts, chunk_size=CHUNK_SIZE, overlap=OVERLAP):

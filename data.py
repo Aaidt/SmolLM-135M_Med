@@ -1,24 +1,31 @@
 from datasets import load_dataset
 from omegaconf import OmegaConf
 from tqdm import tqdm
+from pathlib import Path
+import random
 
-data_cfg = OmegaConf.load("configs/data/CPT_data.yaml")
-train_file = data_cfg.train_file
-validation_file = data_cfg.val_file
+cfg = OmegaConf.load("config.yaml")
 
-PUBMED_ABSTRACT_DOCS = 6_000_000
-PMC_DOCS = 2_000_000
-MEDLINE_DOCS = 1_000_000
-FINEWEB_DOCS = 1_000_000
+data_file = Path(cfg.data_file)
+train_file = Path(cfg.train_file)
+val_file = Path(cfg.val_file)
 
-streaming = True
+data_file.parent.mkdir(parents=True, exist_ok=True)
 
-if train_file.exists() and validation_file.exists() and train_file.stat().st_size > 0 and validation_file.stat().st_size > 0:
-    print(f"Train and validation files already exist at {train_file} and {validation_file}. Skipping dataset creation.")
-    streaming = False
+OVERLAP = cfg.OVERLAP
+CHUNK_SIZE = cfg.CHUNK_SIZE
 
-if streaming:
-    print(f"Creating train and validation files at {train_file} and {validation_file}...")
+PUBMED_ABSTRACT_DOCS = 6000
+PMC_DOCS = 2000
+MEDLINE_DOCS = 1000
+FINEWEB_DOCS = 1000
+
+TOTAL = 10_000
+
+if data_file.exists() and data_file.stat().st_size > 0:
+    print(f"dataset file already exists. Skipping dataset streaming")
+else:
+    print(f"Creating dataset files at {data_file}...")
 
     datasets = [
         ("PubMed Abstracts", lambda: load_dataset("uiyunkim-hub/pubmed-abstract", split="train", streaming=True), "abstract", PUBMED_ABSTRACT_DOCS),
@@ -29,7 +36,7 @@ if streaming:
 
     total_samples = sum(n for _, _, _, n in datasets)
 
-    with open(train_file, "w") as f:
+    with open(data_file, "w") as f:
         with tqdm(total=total_samples, desc="Total progress", unit=" samples") as total_pbar:
             for name, loader, key, max_samples in datasets:
                 ds = loader()

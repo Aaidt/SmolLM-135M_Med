@@ -1,0 +1,11 @@
+data_file: ./data/dataset.txt
+
+train_file: ./data/train.txt
+val_file: ./data/val.txt
+
+CHUNK_SIZE: 256
+OVERLAP: 0.2
+
+SEED: 42
+MAX_SEQ_LENGTH: 512
+MODEL_NAME: HuggingFaceTB/SmolLM-135M
