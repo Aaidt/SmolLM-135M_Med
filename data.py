@@ -2,6 +2,7 @@ from datasets import load_dataset
 from omegaconf import OmegaConf
 from tqdm import tqdm
 from pathlib import Path
+from transformers import AutoTokenizer
 import random
 
 cfg = OmegaConf.load("config.yaml")
@@ -14,6 +15,10 @@ data_file.parent.mkdir(parents=True, exist_ok=True)
 
 OVERLAP = cfg.OVERLAP
 CHUNK_SIZE = cfg.CHUNK_SIZE
+SEED = cfg.SEED
+
+SPLIT = 0.1
+random.seed(SEED)
 
 PUBMED_ABSTRACT_DOCS = 6000
 PMC_DOCS = 2000
@@ -22,10 +27,12 @@ FINEWEB_DOCS = 1000
 
 TOTAL = 10_000
 
+tokenizer = AutoTokenizer.from_pretrained("HuggingFaceTB/SmolLM-135M")
+
 if data_file.exists() and data_file.stat().st_size > 0:
-    print(f"dataset file already exists. Skipping dataset streaming")
+    print(f"[1] dataset file already exists. Skipping dataset streaming")
 else:
-    print(f"Creating dataset files at {data_file}...")
+    print(f"[1] Creating dataset files at {data_file}...")
 
     datasets = [
         ("PubMed Abstracts", lambda: load_dataset("uiyunkim-hub/pubmed-abstract", split="train", streaming=True), "abstract", PUBMED_ABSTRACT_DOCS),
@@ -48,3 +55,40 @@ else:
                     inner_pbar.update(1)
                     total_pbar.update(1)
                 inner_pbar.close()
+
+print(f"[2] Lets start chunking this data to pass it to Unsloth trainer...")
+
+with open(train_file, "w") as train, open(val_file, "w") as val:
+    with open(data_file, "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            ids = tokenizer.encode(line, add_special_tokens=False)
+            if len(ids) < CHUNK_SIZE:
+                continue
+
+            out = val if random.random() < SPLIT else train
+            for start in range(0, len(ids), CHUNK_SIZE - OVERLAP):
+                chunk = ids[start : start + CHUNK_SIZE]
+
+                if len(chunk) < CHUNK_SIZE:
+                    continue
+
+                out.write(tokenizer.decode(chunk) + "\n")
+
+print(f"[3] Converting the dataset into Dataset format for Unsloth...")
+
+train_ds = load_dataset(
+    "text",
+    data_files=str(train_file),
+    split="train"
+)
+
+val_ds = load_dataset(
+    "text",
+    data_files=str(val_file),
+    split="train"
+)
+
+print(f"Dataset phase completed")
