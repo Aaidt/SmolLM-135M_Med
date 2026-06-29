@@ -43,57 +43,48 @@ else:
 
     total_samples = sum(n for _, _, _, n in datasets)
 
-    with open(data_file, "w") as f:
+    total_docs  = 0
+    discarded_docs = 0
+    kept_docs = 0
+
+    with open(train_file, "w") as train, open(val_file, "w") as val:
         with tqdm(total=total_samples, desc="Total progress", unit=" samples") as total_pbar:
             for name, loader, key, max_samples in datasets:
                 ds = loader()
+                
                 inner_pbar = tqdm(total=max_samples, desc=f"  Downloading {name}", unit=" samples", leave=False)
+                
                 for i, item in enumerate(ds):
                     if i >= max_samples:
                         break
-                    f.write(item[key] + "\n")
+                    
+                    total_docs += 1
+
+                    text = item[key].strip()
+                    ids = tokenizer.encode(text, add_special_tokens=False)
+
+                    if len(ids) < CHUNK_SIZE:
+                        discarded_docs += 1
+                        continue
+
+                    kept_docs += 1
+
+                    step = CHUNK_SIZE - OVERLAP
+                    out = val if random.random() < SPLIT else train
+                    for start in range(0, len(ids) - CHUNK_SIZE + 1, step):
+                        chunk = ids[start : start + CHUNK_SIZE]
+
+                        out.write(tokenizer.decode(chunk) + "\n") 
+
                     inner_pbar.update(1)
                     total_pbar.update(1)
                 inner_pbar.close()
 
-print(f"[2] Lets start chunking this data to pass it to Unsloth trainer...\n")
-total_docs  = 0
-discarded_docs = 0
-kept_docs = 0
+    print(f"Total: {total_docs}")                    
+    print(f"kept: {kept_docs}")
+    print(f"Discarded: {discarded_docs}")
 
-if train_file.exists() and val_file.exists() and train_file.stat().st_size > 0 and val_file.stat().st_size > 0:
-    print(f"training and validation datasets already created...Done!!")
-else:
-    with open(train_file, "w") as train, open(val_file, "w") as val:
-        with open(data_file, "r") as f:
-            for line in f:
-                total_docs += 1
-                line = line.strip()
-                if not line:
-                    continue
-                ids = tokenizer.encode(line, add_special_tokens=False)
-                
-                if len(ids) < CHUNK_SIZE:
-                    discarded_docs += 1
-                    continue
-
-                kept_docs += 1
-
-                out = val if random.random() < SPLIT else train
-                step = CHUNK_SIZE - OVERLAP
-                for start in range(0, len(ids) - CHUNK_SIZE + 1, step):
-                    chunk = ids[start : start + CHUNK_SIZE]
-
-                    if len(chunk) < CHUNK_SIZE:
-                        continue
-
-                    out.write(tokenizer.decode(chunk) + "\n")
-
-print(f"Total: {total_docs}")                    
-print(f"kept: {kept_docs}")
-print(f"Discarded: {discarded_docs}")
-
-print(f"[3] Converting the dataset into Dataset format for Unsloth...\n")
+print(f"[2] Converting the dataset into Dataset format for Unsloth...\n")
 
 datasets = load_dataset(
     "text",
@@ -106,4 +97,4 @@ datasets = load_dataset(
 train_ds = datasets["train"]
 val_ds = datasets["validation"]
 
-print(f"Dataset phase completed")
+print(f"[3] Dataset phase completed")
