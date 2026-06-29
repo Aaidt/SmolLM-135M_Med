@@ -7,13 +7,11 @@ import random
 
 cfg = OmegaConf.load("config.yaml")
 
-data_file = Path(cfg.data_file)
 train_file = Path(cfg.train_file)
 val_file = Path(cfg.val_file)
 
-data_file.parent.mkdir(parents=True, exist_ok=True)
+train_file.parent.mkdir(parents=True, exist_ok=True)
 
-OVERLAP = cfg.OVERLAP
 CHUNK_SIZE = cfg.CHUNK_SIZE
 SEED = cfg.SEED
 
@@ -29,10 +27,10 @@ TOTAL = 10_000
 
 tokenizer = AutoTokenizer.from_pretrained("HuggingFaceTB/SmolLM-135M")
 
-if data_file.exists() and data_file.stat().st_size > 0:
+if train_file.exists() and val_file.exists() and train_file.stat().st_size > 0 and val_file.stat().st_size > 0:
     print(f"[1] dataset file already exists. Skipping dataset streaming\n")
 else:
-    print(f"[1] Creating dataset files at {data_file}...\n")
+    print(f"[1] Creating dataset files...\n")
 
     datasets = [
         ("PubMed Abstracts", lambda: load_dataset("uiyunkim-hub/pubmed-abstract", split="train", streaming=True), "abstract", PUBMED_ABSTRACT_DOCS),
@@ -43,12 +41,10 @@ else:
 
     total_samples = sum(n for _, _, _, n in datasets)
 
-    total_docs  = 0
-    discarded_docs = 0
-    kept_docs = 0
-
     with open(train_file, "w") as train, open(val_file, "w") as val:
         with tqdm(total=total_samples, desc="Total progress", unit=" samples") as total_pbar:
+            buffer = []
+            
             for name, loader, key, max_samples in datasets:
                 ds = loader()
                 
@@ -57,32 +53,20 @@ else:
                 for i, item in enumerate(ds):
                     if i >= max_samples:
                         break
-                    
-                    total_docs += 1
 
                     text = item[key].strip()
                     ids = tokenizer.encode(text, add_special_tokens=False)
-
-                    if len(ids) < CHUNK_SIZE:
-                        discarded_docs += 1
-                        continue
-
-                    kept_docs += 1
-
-                    step = CHUNK_SIZE - OVERLAP
-                    out = val if random.random() < SPLIT else train
-                    for start in range(0, len(ids) - CHUNK_SIZE + 1, step):
-                        chunk = ids[start : start + CHUNK_SIZE]
-
+                    buffer.extend(ids)
+                    
+                    while len(buffer) >= CHUNK_SIZE:
+                        chunk = buffer[:CHUNK_SIZE]
+                        out = val if random.random() < SPLIT else train
                         out.write(tokenizer.decode(chunk) + "\n") 
+                        buffer = buffer[CHUNK_SIZE:]
 
                     inner_pbar.update(1)
                     total_pbar.update(1)
                 inner_pbar.close()
-
-    print(f"Total: {total_docs}")                    
-    print(f"kept: {kept_docs}")
-    print(f"Discarded: {discarded_docs}")
 
 print(f"[2] Converting the dataset into Dataset format for Unsloth...\n")
 
