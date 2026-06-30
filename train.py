@@ -6,7 +6,7 @@ from main import load_model
 
 cfg = OmegaConf.load("config.yaml")
 
-SEED = cfg.seed
+SEED = cfg.SEED
 MAX_SEQ_LENGTH = cfg.MAX_SEQ_LENGTH
 
 

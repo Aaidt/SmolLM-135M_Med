@@ -8,7 +8,7 @@ from data import run_data
 
 cfg = OmegaConf.load("config.yaml")
 
-SEED = cfg.seed
+SEED = cfg.SEED
 MAX_SEQ_LENGTH = cfg.MAX_SEQ_LENGTH
 MODEL_NAME = cfg.MODEL_NAME
 DTYPE = torch.bfloat16 if torch.cuda.is_available() else torch.float32
