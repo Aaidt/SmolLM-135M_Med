@@ -1,11 +1,10 @@
 import torch
 import json
-from main import load_model
 from datasets import load_dataset
 from tqdm import tqdm
 from pathlib import Path
 
-RESULTS_DIR = Path("/results") if Path("/results").exists() else Path("results")
+RESULTS_DIR = Path("results")
 RESULTS_DIR.mkdir(exist_ok=True)
 
 MODEL_NAME = "HuggingFaceTB/SmolLM-135M"
@@ -86,7 +85,7 @@ def eval_pubmedqa(model, tokenizer, max_samples=None):
 def eval_medmcqa(model, tokenizer, max_samples=None):
     """MedMCQA: medical MCQ with 4 options."""
     print("\n=== MedMCQA ===")
-    ds = load_dataset("medmcqa", split="train")
+    ds = load_dataset("openlifescienceai/medmcqa", split="train")
     if max_samples:
         ds = ds.select(range(min(max_samples, len(ds))))
 
@@ -171,96 +170,95 @@ def eval_medqa(model, tokenizer, max_samples=None):
     return {"accuracy": round(accuracy, 4), "correct": correct, "total": total, "details": results}
 
 
-def eval_medication_qa(model, tokenizer, max_samples=None):
-    """MedicationQA: consumer medication questions."""
-    print("\n=== MedicationQA ===")
-    ds = load_dataset("bigbio/medication_qa", split="train")
-    if max_samples:
-        ds = ds.select(range(min(max_samples, len(ds))))
+# def eval_medication_qa(model, tokenizer, max_samples=None):
+#     """MedicationQA: consumer medication questions."""
+#     print("\n=== MedicationQA ===")
+#     ds = load_dataset("bigbio/medication_qa", split="train")
+#     if max_samples:
+#         ds = ds.select(range(min(max_samples, len(ds))))
 
-    correct = 0
-    total = 0
-    results = []
+#     correct = 0
+#     total = 0
+#     results = []
 
-    for item in tqdm(ds, desc="MedicationQA"):
-        item = dict(item)
-        question = item["question"]
-        answer = item["answer"]
-        choices_list = item.get("choices", [])
-        if not choices_list or len(choices_list) < 2:
-            continue
+#     for item in tqdm(ds, desc="MedicationQA"):
+#         item = dict(item)
+#         question = item["question"]
+#         answer = item["answer"]
+#         choices_list = item.get("choices", [])
+#         if not choices_list or len(choices_list) < 2:
+#             continue
 
-        choices = [c["value"] for c in choices_list]
-        prompt = f"Question: {question}\nAnswer:"
+#         choices = [c["value"] for c in choices_list]
+#         prompt = f"Question: {question}\nAnswer:"
 
-        log_probs = choice_log_probs(model, tokenizer, prompt, choices)
-        predicted = choices[int(torch.tensor(log_probs).argmax().item())]
-        is_correct = predicted.lower().strip() == answer.lower().strip()
-        if is_correct:
-            correct += 1
-        total += 1
+#         log_probs = choice_log_probs(model, tokenizer, prompt, choices)
+#         predicted = choices[int(torch.tensor(log_probs).argmax().item())]
+#         is_correct = predicted.lower().strip() == answer.lower().strip()
+#         if is_correct:
+#             correct += 1
+#         total += 1
 
-        results.append({
-            "question": question[:100],
-            "true_answer": answer,
-            "predicted": predicted,
-            "correct": is_correct,
-        })
+#         results.append({
+#             "question": question[:100],
+#             "true_answer": answer,
+#             "predicted": predicted,
+#             "correct": is_correct,
+#         })
 
-    accuracy = correct / total if total > 0 else 0.0
-    print(f"  Accuracy: {accuracy:.4f} ({correct}/{total})")
-    return {"accuracy": round(accuracy, 4), "correct": correct, "total": total, "details": results}
-
-
-def eval_bioasq(model, tokenizer, max_samples=None):
-    """BioASQ: biomedical QA (factoid yes/no)."""
-    print("\n=== BioASQ ===")
-    ds = load_dataset("bigbio/bioasq", split="train")
-    if max_samples:
-        ds = ds.select(range(min(max_samples, len(ds))))
-
-    correct = 0
-    total = 0
-    results = []
-
-    for item in tqdm(ds, desc="BioASQ"):
-        item = dict(item)
-        question = item["question"]
-        type_ = item.get("type", "")
-        if type_ != "yesno":
-            continue
-        answer = item.get("ideal_answer", "")
-        if isinstance(answer, list):
-            answer = answer[0] if answer else ""
-        true_label = answer.strip().lower()
-        if true_label not in ("yes", "no"):
-            continue
-
-        prompt = f"Question: {question}\nAnswer:"
-        choices = ["yes", "no"]
-        log_probs = choice_log_probs(model, tokenizer, prompt, choices)
-
-        predicted = choices[int(torch.tensor(log_probs).argmax().item())]
-        is_correct = predicted == true_label
-        if is_correct:
-            correct += 1
-        total += 1
-
-        results.append({
-            "question": question[:100],
-            "true_answer": true_label,
-            "predicted": predicted,
-            "correct": is_correct,
-        })
-
-    accuracy = correct / total if total > 0 else 0.0
-    print(f"  Accuracy: {accuracy:.4f} ({correct}/{total})")
-    return {"accuracy": round(accuracy, 4), "correct": correct, "total": total, "details": results}
+#     accuracy = correct / total if total > 0 else 0.0
+#     print(f"  Accuracy: {accuracy:.4f} ({correct}/{total})")
+#     return {"accuracy": round(accuracy, 4), "correct": correct, "total": total, "details": results}
 
 
-def main():
-    print(f"Loading base model: {MODEL_NAME}")
-    model, tokenizer = load_model()
+# def eval_bioasq(model, tokenizer, max_samples=None):
+#     """BioASQ: biomedical QA (factoid yes/no)."""
+#     print("\n=== BioASQ ===")
+#     ds = load_dataset("bigbio/_task_b", split="train")
+#     if max_samples:
+#         ds = ds.select(range(min(max_samples, len(ds))))
+
+#     correct = 0
+#     total = 0
+#     results = []
+
+#     for item in tqdm(ds, desc="BioASQ"):
+#         item = dict(item)
+#         question = item["question"]
+#         type_ = item.get("type", "")
+#         if type_ != "yesno":
+#             continue
+#         answer = item.get("ideal_answer", "")
+#         if isinstance(answer, list):
+#             answer = answer[0] if answer else ""
+#         true_label = answer.strip().lower()
+#         if true_label not in ("yes", "no"):
+#             continue
+
+#         prompt = f"Question: {question}\nAnswer:"
+#         choices = ["yes", "no"]
+#         log_probs = choice_log_probs(model, tokenizer, prompt, choices)
+
+#         predicted = choices[int(torch.tensor(log_probs).argmax().item())]
+#         is_correct = predicted == true_label
+#         if is_correct:
+#             correct += 1
+#         total += 1
+
+#         results.append({
+#             "question": question[:100],
+#             "true_answer": true_label,
+#             "predicted": predicted,
+#             "correct": is_correct,
+#         })
+
+#     accuracy = correct / total if total > 0 else 0.0
+#     print(f"  Accuracy: {accuracy:.4f} ({correct}/{total})")
+#     return {"accuracy": round(accuracy, 4), "correct": correct, "total": total, "details": results}
+
+
+def run_all_benchmarks(model, tokenizer, output_suffix="untrained"):
+    print(f"Running benchmarks ...")
     print(f"Device: {model.device}")
 
     all_results = {"model": MODEL_NAME, "benchmarks": {}}
@@ -269,8 +267,8 @@ def main():
         ("pubmedqa", eval_pubmedqa, 200),
         ("medmcqa", eval_medmcqa, 200),
         ("medqa", eval_medqa, 200),
-        ("medication_qa", eval_medication_qa, 200),
-        ("bioasq_yesno", eval_bioasq, 200),
+        # ("medication_qa", eval_medication_qa, 200),
+        # ("bioasq_yesno", eval_bioasq, 200),
     ]
 
     for name, fn, limit in benchmarks:
@@ -285,10 +283,18 @@ def main():
             print(f"  ERROR running {name}: {e}")
             all_results["benchmarks"][name] = {"error": str(e)}
 
-    out_path = RESULTS_DIR / "benchmarks_base_model.json"
+    out_path = RESULTS_DIR / f"benchmarks_{output_suffix}.json"
     with open(out_path, "w") as f:
         json.dump(all_results, f, indent=2)
     print(f"\nAll benchmark results saved to {out_path}")
+    return all_results
+
+
+def main():
+    from main import load_model
+    print(f"Loading base model: {MODEL_NAME}")
+    model, tokenizer = load_model()
+    run_all_benchmarks(model, tokenizer, "untrained")
 
 
 if __name__ == "__main__":

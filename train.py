@@ -93,7 +93,7 @@ def configure_trainer(model, tokenizer, train_dataset, val_dataset):
     return trainer
 
 
-def main():
+def run_training():
     print("=" * 58)
     print("  SmolLM-135M  CPT  Training")
     print("=" * 58)
@@ -110,8 +110,13 @@ def main():
     print("-" * 58)
     print("[DONE]  Training complete!")
     print(f"  Best eval loss: {trainer.state.best_metric:.4f}")
-    print(f"  Model saved to: ./cpt_sec_filings")
     print("=" * 58)
+
+    return model, tokenizer
+
+
+def main():
+    run_training()
 
 
 if __name__ == "__main__":

@@ -1,6 +1,5 @@
 import torch
 import math
-from main import load_model
 from datasets import load_dataset
 from tqdm import tqdm
 import json
@@ -58,9 +57,8 @@ def sliding_window_ppl(model, tokenizer, texts, max_length=MAX_LENGTH, stride=ST
     return ppl, avg_nll, total_tokens
 
 
-def perplexity_on_medical_text():
-    print(f"Loading model: {MODEL_NAME}")
-    model, tokenizer = load_model()
+def run_perplexity(model, tokenizer, output_suffix="untrained"):
+    print(f"Evaluating perplexity ...")
     print(f"Model on device: {model.device}")
 
     datasets_to_eval = [
@@ -92,10 +90,19 @@ def perplexity_on_medical_text():
             "num_samples": len(texts),
         }
 
-    out_path = RESULTS_DIR / "perplexity_base_model.json"
+    out_path = RESULTS_DIR / f"perplexity_{output_suffix}.json"
     with open(out_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"\nResults saved to {out_path}")
+    return results
+
+
+def perplexity_on_medical_text():
+    from main import load_model
+    print(f"Loading model: {MODEL_NAME}")
+    model, tokenizer = load_model()
+    print(f"Model on device: {model.device}")
+    return run_perplexity(model, tokenizer, "untrained")
 
 
 if __name__ == "__main__":
