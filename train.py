@@ -1,4 +1,4 @@
-from data import train_ds, val_ds
+from data import run_data
 from unsloth import FastLanguageModel
 from unsloth.trainer import UnslothTrainer, UnslothTrainingArguments
 from omegaconf import OmegaConf
@@ -11,7 +11,7 @@ MAX_SEQ_LENGTH = cfg.MAX_SEQ_LENGTH
 
 
 def add_lora_adapters(model):
-    print("[2] Adding LoRA adapters ...")
+    print("  Adding LoRA adapters ...")
     model = FastLanguageModel.get_peft_model(
         model,
         r=32,
@@ -40,7 +40,7 @@ def add_lora_adapters(model):
 
 
 def configure_trainer(model, tokenizer, train_dataset, val_dataset):
-    print("[3] Configuring trainer ...")
+    print("  Configuring trainer ...")
 
     training_args = UnslothTrainingArguments(
         output_dir="./SmolLM-135M_Med",
@@ -98,12 +98,12 @@ def run_training():
     print("  SmolLM-135M  CPT  Training")
     print("=" * 58)
 
-    train_dataset, val_dataset = train_ds, val_ds
+    train_dataset, val_dataset = run_data()
     model, tokenizer = load_model()
     model = add_lora_adapters(model)
     trainer = configure_trainer(model, tokenizer, train_dataset, val_dataset)
 
-    print("[4] Starting training ...")
+    print("  Starting training ...")
     print("-" * 58)
     trainer_stats = trainer.train()
 
