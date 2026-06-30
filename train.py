@@ -1,35 +1,17 @@
-import torch
-from pathlib import Path
 from data import train_ds, val_ds
 from unsloth import FastLanguageModel
 from unsloth.trainer import UnslothTrainer, UnslothTrainingArguments
 from omegaconf import OmegaConf
+from main import load_model
 
 cfg = OmegaConf.load("config.yaml")
 
 SEED = cfg.seed
 MAX_SEQ_LENGTH = cfg.MAX_SEQ_LENGTH
-MODEL_NAME = cfg.MODEL_NAME
-
-DTYPE = torch.bfloat16 if torch.cuda.is_available() else torch.float32
-
-
-def load_model():
-    print("[2/5] Loading base model ...")
-    model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name=MODEL_NAME,
-        max_seq_length=MAX_SEQ_LENGTH,
-        dtype=DTYPE,
-        load_in_4bit=True,
-    )
-    print(f"  Model: {MODEL_NAME}")
-    print(f"  Max seq length: {MAX_SEQ_LENGTH}")
-    print(f"  Loaded in 4-bit: True")
-    return model, tokenizer
 
 
 def add_lora_adapters(model):
-    print("[3/5] Adding LoRA adapters ...")
+    print("[2] Adding LoRA adapters ...")
     model = FastLanguageModel.get_peft_model(
         model,
         r=32,
@@ -58,10 +40,10 @@ def add_lora_adapters(model):
 
 
 def configure_trainer(model, tokenizer, train_dataset, val_dataset):
-    print("[4/5] Configuring trainer ...")
+    print("[3] Configuring trainer ...")
 
     training_args = UnslothTrainingArguments(
-        output_dir="./cpt_sec_filings",
+        output_dir="./SmolLM-135M_Med",
         num_train_epochs=2,
         per_device_train_batch_size=16,
         gradient_accumulation_steps=2,
@@ -116,17 +98,17 @@ def main():
     print("  SmolLM-135M  CPT  Training")
     print("=" * 58)
 
-    train_dataset, val_dataset = load_chunked_dataset()
+    train_dataset, val_dataset = train_ds, val_ds
     model, tokenizer = load_model()
     model = add_lora_adapters(model)
     trainer = configure_trainer(model, tokenizer, train_dataset, val_dataset)
 
-    print("[5/5] Starting training ...")
+    print("[4] Starting training ...")
     print("-" * 58)
     trainer_stats = trainer.train()
 
     print("-" * 58)
-    print("  Training complete!")
+    print("[DONE]  Training complete!")
     print(f"  Best eval loss: {trainer.state.best_metric:.4f}")
     print(f"  Model saved to: ./cpt_sec_filings")
     print("=" * 58)
