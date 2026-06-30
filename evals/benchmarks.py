@@ -1,6 +1,6 @@
 import torch
 import json
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from main import load_model
 from datasets import load_dataset
 from tqdm import tqdm
 from pathlib import Path
@@ -11,15 +11,6 @@ RESULTS_DIR.mkdir(exist_ok=True)
 MODEL_NAME = "HuggingFaceTB/SmolLM-135M"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DTYPE = torch.bfloat16 if torch.cuda.is_available() else torch.float32
-
-
-def load_model():
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    model = AutoModelForCausalLM.from_pretrained(
-        MODEL_NAME, torch_dtype=DTYPE, device_map="auto"
-    )
-    model.eval()
-    return model, tokenizer
 
 
 def choice_log_probs(model, tokenizer, prompt, choices):

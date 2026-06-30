@@ -1,9 +1,5 @@
-# load model for inference and evaluate it on benchmarks and produce some generations to see how well the model talks
 import torch
-from pathlib import Path
-from data import train_ds, val_ds
 from unsloth import FastLanguageModel
-from unsloth.trainer import UnslothTrainer, UnslothTrainingArguments
 from omegaconf import OmegaConf
 
 cfg = OmegaConf.load("config.yaml")

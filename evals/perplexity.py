@@ -1,6 +1,6 @@
 import torch
 import math
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from main import load_model
 from datasets import load_dataset
 from tqdm import tqdm
 import json
@@ -13,17 +13,6 @@ MODEL_NAME = "HuggingFaceTB/SmolLM-135M"
 DTYPE = torch.bfloat16 if torch.cuda.is_available() else torch.float32
 MAX_LENGTH = 1024
 STRIDE = 512
-
-
-def load_model():
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    tokenizer.pad_token = tokenizer.eos_token
-    model = AutoModelForCausalLM.from_pretrained(
-        MODEL_NAME, torch_dtype=DTYPE, device_map="auto"
-    )
-    model.eval()
-    return model, tokenizer
-
 
 def sliding_window_ppl(model, tokenizer, texts, max_length=MAX_LENGTH, stride=STRIDE):
     total_nll = 0.0
