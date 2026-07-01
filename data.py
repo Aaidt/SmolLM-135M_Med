@@ -13,7 +13,6 @@ def run_data():
     val_file = Path(cfg.val_file)
     train_file.parent.mkdir(parents=True, exist_ok=True)
 
-    CHUNK_SIZE = cfg.MAX_SEQ_LENGTH
     SEED = cfg.SEED
 
     SPLIT = 0.1
@@ -57,7 +56,6 @@ def run_data():
 
                         text = item[key].strip()
                         ids = tokenizer.encode(text, add_special_tokens=False)
-                        ids.append(tokenizer.eos_token_id)
                         total_tokens += len(ids)
 
                         out = val if random.random() < SPLIT else train

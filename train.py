@@ -44,12 +44,12 @@ def configure_trainer(model, train_dataset, val_dataset):
 
     training_args = UnslothTrainingArguments(
         output_dir="./SmolLM-135M_Med",
-        num_train_epochs=2,
+        num_train_epochs=1,
         per_device_train_batch_size=16,
         gradient_accumulation_steps=2,
         learning_rate=5e-5,
         embedding_learning_rate=5e-6,
-        warmup_steps=50,
+        warmup_ratio=0.05,
         lr_scheduler_type="cosine",
         optim="adamw_8bit",
         weight_decay=0.01,

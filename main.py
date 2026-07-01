@@ -29,28 +29,40 @@ def load_model():
     print(f"  Loaded in 4-bit: True")
     return model, tokenizer
 
+def save_merged_model(model, tokenizer):
+    FastLanguageModel.for_inference(model)
+
+    model.save_pretrained_merged(
+        "SmolLM-135M_Med_Merged",
+        tokenizer,
+        save_method="merged_16bit",
+    )
+
 def main():
     from train import run_training
 
-    print("\n[1] Running data phase...")
+    print("\nRunning data phase...")
     run_data()
 
-    print("\n[2] Loading base model ...")
+    print("\nLoading base model ...")
     model, tokenizer = load_model()
 
-    print("\n[3] Running benchmarks on untrained model...")
+    print("\nRunning benchmarks on untrained model...")
     run_all_benchmarks(model, tokenizer, output_suffix="untrained")
 
-    print("\n[4] Running perplexity on untrained model...")
+    print("\nRunning perplexity on untrained model...")
     run_perplexity(output_suffix="untrained")
 
-    print("\n[5] Starting training...")
+    print("\nStarting training...")
     model, tokenizer = run_training()
 
-    print("\n[6] Running benchmarks on trained model...")
+    print(f"\nSaving the full merged model...")
+    save_merged_model(model=model, tokenizer=tokenizer)
+
+    print("\nRunning benchmarks on trained model...")
     run_all_benchmarks(model, tokenizer, output_suffix="trained")
 
-    print("\n[7] Running perplexity on trained model...")
+    print("\nRunning perplexity on trained model...")
     run_perplexity(output_suffix="trained")
 
     print("\nAll done! Results saved to ./results/")
