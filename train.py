@@ -118,7 +118,7 @@ def add_lora_adapters(model):
     return model
 
 
-def configure_trainer(model, train_dataset, val_dataset):
+def configure_trainer(model, tokenizer, train_dataset, val_dataset):
     print("  Configuring trainer ...")
 
     try:
@@ -138,8 +138,8 @@ def configure_trainer(model, train_dataset, val_dataset):
             weight_decay=0.01,
             max_grad_norm=1.0,
 
-            max_length=MAX_SEQ_LENGTH,
-            packing=True,
+            # max_length=MAX_SEQ_LENGTH,
+            # packing=True,
             dataset_num_proc=2,
 
             eval_strategy="steps",
@@ -170,6 +170,7 @@ def configure_trainer(model, train_dataset, val_dataset):
             args=training_args,
             train_dataset=train_dataset,
             eval_dataset=val_dataset,
+            processing_class=tokenizer
         )
     except ValueError as e:
         if "columns" in str(e).lower():
@@ -206,7 +207,7 @@ def run_training():
     train_dataset = tokenize_dataset_for_packing(train_dataset, tokenizer, "train")
     val_dataset = tokenize_dataset_for_packing(val_dataset, tokenizer, "eval")
     model = add_lora_adapters(model)
-    trainer = configure_trainer(model, train_dataset, val_dataset)
+    trainer = configure_trainer(model, tokenizer, train_dataset, val_dataset)
 
     print("  Starting training ...")
     print("-" * 58)
@@ -216,7 +217,7 @@ def run_training():
         raise RuntimeError(
             "GPU out of memory during training.\n"
             f"  Effective batch size: {trainer.args.per_device_train_batch_size * trainer.args.gradient_accumulation_steps}\n"
-            f"  Max seq length: {trainer.args.max_length}\n"
+            # f"  Max seq length: {trainer.args.max_length}\n"
             "  Solutions:\n"
             "    - Reduce per_device_train_batch_size (try 8 or 4)\n"
             "    - Reduce gradient_accumulation_steps\n"
