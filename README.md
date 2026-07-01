@@ -1,14 +1,7 @@
- ```
-  ▗▄▖           ▗▄▖  ▗▖   ▗▄ ▄▖      ▗▄   ▄▄▖ ▗▄▄▄ ▗▄ ▄▖     ▗▄ ▄▖        ▗▖
-▗▛▀▜           ▝▜▌  ▐▌   ▐█ █▌      ▛█  ▐▀▀█▖▐▛▀▀ ▐█ █▌     ▐█ █▌        ▐▌
-▐▙   ▐█▙█▖ ▟█▙  ▐▌  ▐▌   ▐███▌       █     ▟▌▐▙▄▖ ▐███▌     ▐███▌ ▟█▙  ▟█▟▌
-  ▜█▙ ▐▌█▐▌▐▛ ▜▌ ▐▌  ▐▌   ▐▌█▐▌       █   ▐██ ▐▀▀█▖▐▌█▐▌     ▐▌█▐▌▐▙▄▟▌▐▛ ▜▌
-    ▜▌▐▌█▐▌▐▌ ▐▌ ▐▌  ▐▌   ▐▌▀▐▌ ██▌   █     ▜▌   ▐▌▐▌▀▐▌     ▐▌▀▐▌▐▛▀▀▘▐▌ ▐▌
-▐▄▄▟▘▐▌█▐▌▝█▄█▘ ▐▙▄ ▐▙▄▄▖▐▌ ▐▌     ▗▄█▄▖▐▄▄█▘▐▄▄█▘▐▌ ▐▌     ▐▌ ▐▌▝█▄▄▌▝█▄█▌
-  ▀▀▘ ▝▘▀▝▘ ▝▀▘   ▀▀ ▝▀▀▀▘▝▘ ▝▘     ▝▀▀▀▘ ▀▀▘  ▀▀▘ ▝▘ ▝▘     ▝▘ ▝▘ ▝▀▀  ▝▀▝▘                  
-                                                       ▀▀▀▀▀   
+<p align="center">
+  <img src="assets/text.png" alt="Training Loss" width="700">
+</p>
 
-```
 
 Medical-domain continued pre-training (CPT) pipeline for HuggingFaceTB's
 SmolLM-135M model. Trains on PubMed, PMC, Medline, and FineWeb datasets
@@ -19,48 +12,63 @@ using LoRA adapters with the Unsloth framework.
 ## Pipeline
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌────────────┐
-│  1. DATA    │ ──► │  2. EVAL     │ ──► │  3. TRAIN  │
-│  Phase      │     │  (baseline)  │     │  (LoRA)    │
-└─────────────┘     └──────────────┘     └────────────┘
-                          │                     │
-                          ▼                     ▼
-                   ┌──────────────┐     ┌──────────────┐
-                   │  Perplexity  │     │  Perplexity  │
-                   │  Benchmarks  │     │  Benchmarks  │
-                   └──────────────┘     └──────────────┘
-                          │                     │
-                          └──────────┬──────────┘
-                                     ▼
-                            ┌────────────────┐
-                            │  4. SAVE       │
-                            │  Merged Model  │
-                            └────────────────┘
+┌──────────────────┐     ┌──────────────────┐
+│  1. LOAD MODEL   │ ──► │  2. BASELINE     │
+│  (4-bit NF4)     │     │  EVAL (untrained)│
+└──────────────────┘     └──────────────────┘
+                                 │
+                                 ▼
+                          ┌──────────────────┐
+                          │  Perplexity      │
+                          │  + Benchmarks    │
+                          └──────────────────┘
+                                 │
+                                 ▼
+┌──────────────────┐     ┌──────────────────┐
+│  3. TRAIN        │ ◄── │  4. DATA PHASE   │
+│  (LoRA + CPT)    │     │  (inside train)  │
+└──────────────────┘     └──────────────────┘
+        │
+        ▼
+┌──────────────────┐     ┌──────────────────┐
+│  5. SAVE         │ ──► │  6. POST-TRAIN   │
+│  Merged 16-bit   │     │  EVAL (trained)  │
+└──────────────────┘     └──────────────────┘
+                                 │
+                                 ▼
+                          ┌──────────────────┐
+                          │  Perplexity       │
+                          │  + Benchmarks     │
+                          └──────────────────┘
 ```
 
 ### Step-by-Step
 
-1. **Data** (`data.py`) — Downloads and tokenizes biomedical datasets, splits 90/10 train/val, writes to text files, then loads into HuggingFace Datasets.
+1. **Load Model** (`model_utils.py`) — Loads SmolLM-135M in 4-bit (NF4) via Unsloth with bfloat16 compute dtype.
 
 2. **Baseline Eval** — Evaluates the untrained base model on perplexity (PubMed Abstracts, Medline) and benchmarks (PubMedQA, MedMCQA).
 
-3. **Training** (`train.py`) — Loads base model, attaches LoRA adapters, runs 1 epoch of CPT with UnslothTrainer.
+3. **Data Phase** (`data.py`) — Downloads and tokenizes biomedical datasets (PubMed, PMC, Medline, FineWeb; 200K samples), splits 90/10 train/val, writes to text files, loads into HuggingFace Datasets. Called inside `train.py`.
 
-4. **Post-Training Eval** — Re-runs perplexity and benchmarks on the trained model.
+4. **Training** (`train.py`) — Loads base model, attaches LoRA adapters (rank 32), tokenizes datasets into packed sequences, runs 1 epoch of CPT with UnslothTrainer.
 
 5. **Export** — Saves a merged 16-bit model to `SmolLM-135M_Med_Merged/`.
+
+6. **Post-Training Eval** — Re-runs perplexity and benchmarks on the trained model.
 
 ---
 
 ## Configuration
 
-All hyperparameters are set in `config.yaml`:
+All paths and hyperparameters are set in `config.yaml`:
 
 | Key | Value | Description |
 |-----|-------|-------------|
 | `MODEL_NAME` | `HuggingFaceTB/SmolLM-135M` | Base model |
 | `SEED` | `42` | Random seed |
 | `MAX_SEQ_LENGTH` | `512` | Max sequence length |
+| `OVERLAP` | `128` | Overlap (reserved) |
+| `data_file` | `./data/dataset.txt` | Combined dataset path |
 | `train_file` | `./data/train.txt` | Training data path |
 | `val_file` | `./data/val.txt` | Validation data path |
 
@@ -87,9 +95,10 @@ All hyperparameters are set in `config.yaml`:
 | Parameter | Value |
 |-----------|-------|
 | Epochs | 1 |
-| Per-device batch size | 16 |
-| Gradient accumulation | 2 |
-| Effective batch size | 32 |
+| Per-device batch size | 128 |
+| Per-device eval batch size | 16 |
+| Gradient accumulation | 1 |
+| Effective batch size | 128 |
 | Learning rate | 5e-5 |
 | Embedding learning rate | 5e-6 |
 | LR scheduler | Cosine |
@@ -97,9 +106,10 @@ All hyperparameters are set in `config.yaml`:
 | Optimizer | AdamW 8-bit |
 | Weight decay | 0.01 |
 | Max grad norm | 1.0 |
-| Packing | Enabled |
-| Eval strategy | Every 250 steps |
-| Save strategy | Every 500 steps (keep 3) |
+| Packing | Disabled (manual chunking) |
+| Dataset num procs | 2 |
+| Eval strategy | Every 1000 steps |
+| Save strategy | Every 1000 steps (keep 3) |
 | Load best model at end | Yes |
 | Metric for best model | Eval loss |
 
@@ -115,8 +125,8 @@ All hyperparameters are set in `config.yaml`:
 - **Pre-tokenization**: Tokenized with SmolLM-135M tokenizer to count tokens
 
 ### Evaluation
-- **Perplexity**: Sliding-window (window=1024, stride=512) on PubMed Abstracts and Medline
-- **Benchmarks**: PubMedQA (yes/no/maybe) and MedMCQA (4-option MCQ)
+- **Perplexity**: Sliding-window (window=512, stride=256) on PubMed Abstracts and Medline (1,000 samples each)
+- **Benchmarks**: PubMedQA (yes/no/maybe) and MedMCQA (4-option MCQ) — 200 samples each
 - **Results**: Saved to `./results/` as JSON with `_untrained` and `_trained` suffixes
 
 ---
@@ -126,6 +136,7 @@ All hyperparameters are set in `config.yaml`:
 ```bash
 # Run the full pipeline
 uv run main.py
+```
 
 ### Dependencies
 
@@ -137,6 +148,7 @@ uv run main.py
 
 Install with uv:
 
+```bash
 uv sync
 ```
 
@@ -149,10 +161,11 @@ uv sync
 ├── train.py             # LoRA training with UnslothTrainer
 ├── data.py              # Dataset download & preprocessing
 ├── model_utils.py       # Shared model loading & config
-├── config.yaml          # Configuration
+├── config.yaml          # Configuration (paths & hyperparams)
 ├── pyproject.toml       # Project metadata & dependencies
 ├── evals/
+│   ├── __init__.py
 │   ├── benchmarks.py    # PubMedQA & MedMCQA evaluation
 │   └── perplexity.py    # Sliding-window perplexity
-└── results/             # Evaluation outputs (JSON)
+└── results/             # Evaluation outputs (JSON: _untrained / _trained)
 ```
