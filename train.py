@@ -1,6 +1,6 @@
 from data import run_data
 from unsloth import FastLanguageModel
-from unsloth.trainer import UnslothTrainer, UnslothTrainingArguments
+from unsloth import UnslothTrainer, UnslothTrainingArguments
 from omegaconf import OmegaConf
 from model_utils import load_model
 
@@ -27,7 +27,7 @@ def tokenize_dataset_for_packing(dataset, tokenizer, split_name):
 
             token_ids = tokenizer.encode(text, add_special_tokens=False)
             for start in range(0, len(token_ids), chunk_size):
-                chunk_ids = token_ids[start:start + chunk_size]
+                chunk_ids = token_ids[start : start + chunk_size]
                 if not chunk_ids:
                     continue
 
@@ -83,35 +83,43 @@ def add_lora_adapters(model):
     return model
 
 
-def configure_trainer(model, train_dataset, val_dataset):
+def configure_trainer(model, tokenizer, train_dataset, val_dataset):
     print("  Configuring trainer ...")
 
     training_args = UnslothTrainingArguments(
         output_dir="./SmolLM-135M_Med",
+
         num_train_epochs=1,
         per_device_train_batch_size=16,
         gradient_accumulation_steps=2,
+
         learning_rate=5e-5,
         embedding_learning_rate=5e-6,
+
         warmup_ratio=0.05,
         lr_scheduler_type="cosine",
         optim="adamw_8bit",
         weight_decay=0.01,
         max_grad_norm=1.0,
+
         max_length=MAX_SEQ_LENGTH,
         packing=True,
         dataset_num_proc=2,
+
         eval_strategy="steps",
         eval_steps=250,
         per_device_eval_batch_size=16,
+
         save_strategy="steps",
         save_steps=500,
         save_total_limit=3,
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
+
         logging_steps=25,
         seed=SEED,
-        report_to="none",
+
+        report_to="wandb",
     )
 
     trainer = UnslothTrainer(
@@ -146,7 +154,7 @@ def run_training():
     train_dataset = tokenize_dataset_for_packing(train_dataset, tokenizer, "train")
     val_dataset = tokenize_dataset_for_packing(val_dataset, tokenizer, "eval")
     model = add_lora_adapters(model)
-    trainer = configure_trainer(model, train_dataset, val_dataset)
+    trainer = configure_trainer(model, tokenizer, train_dataset, val_dataset)
 
     print("  Starting training ...")
     print("-" * 58)

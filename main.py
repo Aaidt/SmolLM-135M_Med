@@ -18,9 +18,6 @@ def save_merged_model(model, tokenizer):
 def main():
     from train import run_training
 
-    # print("\nRunning data phase...")
-    # run_data()
-
     print("\nLoading base model ...")
     model, tokenizer = load_model()
 
