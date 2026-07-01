@@ -137,7 +137,7 @@ uv run main.py
 
 Install with uv:
 
-```bash
+
 uv sync
 ```
 
