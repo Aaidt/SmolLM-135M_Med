@@ -49,14 +49,14 @@ def save_merged_model(model, tokenizer):
 def main():
     from train import run_training
 
-    print("\nLoading base model ...")
-    model, tokenizer = load_model()
+    # print("\nLoading base model ...")
+    # model, tokenizer = load_model()
 
-    print("\nRunning benchmarks on untrained model...")
-    run_all_benchmarks(model, tokenizer, output_suffix="untrained")
+    # print("\nRunning benchmarks on untrained model...")
+    # run_all_benchmarks(model, tokenizer, output_suffix="untrained")
 
-    print("\nRunning perplexity on untrained model...")
-    run_perplexity(model, tokenizer, output_suffix="untrained")
+    # print("\nRunning perplexity on untrained model...")
+    # run_perplexity(model, tokenizer, output_suffix="untrained")
 
     print("\nStarting training...")
     try:
