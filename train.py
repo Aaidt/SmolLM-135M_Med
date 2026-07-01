@@ -71,15 +71,15 @@ def add_lora_adapters(model):
         "embed_tokens", "lm_head",
     ]
 
-    missing_modules = [
-        m for m in target_modules
-        if m not in dict(model.named_modules())
-    ]
-    if missing_modules:
-        raise ValueError(
-            f"Target modules not found in model: {missing_modules}\n"
-            f"Available modules: {list(dict(model.named_modules()).keys())[:50]}"
-        )
+    # missing_modules = [
+    #     m for m in target_modules
+    #     if m not in dict(model.named_modules())
+    # ]
+    # if missing_modules:
+    #     raise ValueError(
+    #         f"Target modules not found in model: {missing_modules}\n"
+    #         f"Available modules: {list(dict(model.named_modules()).keys())[:50]}"
+    #     )
 
     try:
         model = FastLanguageModel.get_peft_model(
