@@ -3,39 +3,53 @@ import json
 from datasets import load_dataset
 from tqdm import tqdm
 from pathlib import Path
+from omegaconf import OmegaConf
 
 RESULTS_DIR = Path("results")
 RESULTS_DIR.mkdir(exist_ok=True)
 
+cfg = OmegaConf.load("config.yaml")
+
 MODEL_NAME = "HuggingFaceTB/SmolLM-135M"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DTYPE = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+MAX_SEQ_LENGTH = cfg.MAX_SEQ_LENGTH
 
 
 def choice_log_probs(model, tokenizer, prompt, choices):
     """Return log probability of each choice given the prompt."""
-    encoded = tokenizer(prompt, return_tensors="pt").to(model.device)
-    with torch.no_grad():
-        outputs = model(**encoded)
-        logits = outputs.logits[0, -1, :]
+    encoded = tokenizer(
+        prompt,
+        return_tensors="pt",
+        truncation=True,
+        max_length=MAX_SEQ_LENGTH,
+    ).to(model.device)
 
     choice_logprobs = []
-    for choice in choices:
-        choice_ids = tokenizer.encode(choice, add_special_tokens=False)
-        if not choice_ids:
-            choice_logprobs.append(-float("inf"))
-            continue
-        lp = 0.0
-        for i, cid in enumerate(choice_ids):
-            if i == 0:
-                lp += logits[cid].item()
-            else:
+    with torch.no_grad():
+        outputs = model(**encoded)
+        log_probs = torch.log_softmax(outputs.logits[0, -1, :].float(), dim=-1)
+
+        for choice in choices:
+            choice_ids = tokenizer.encode(choice, add_special_tokens=False)
+            if not choice_ids:
+                choice_logprobs.append(-float("inf"))
+                continue
+
+            lp = log_probs[choice_ids[0]].item()
+            for i, cid in enumerate(choice_ids[1:], start=1):
                 sub_prompt = prompt + tokenizer.decode(choice_ids[:i])
-                sub_encoded = tokenizer(sub_prompt, return_tensors="pt").to(model.device)
-                with torch.no_grad():
-                    sub_logits = model(**sub_encoded).logits[0, -1, :]
-                lp += sub_logits[cid].item()
-        choice_logprobs.append(lp)
+                sub_encoded = tokenizer(
+                    sub_prompt,
+                    return_tensors="pt",
+                    truncation=True,
+                    max_length=MAX_SEQ_LENGTH,
+                ).to(model.device)
+                sub_outputs = model(**sub_encoded)
+                sub_log_probs = torch.log_softmax(sub_outputs.logits[0, -1, :].float(), dim=-1)
+                lp += sub_log_probs[cid].item()
+
+            choice_logprobs.append(lp)
 
     log_probs_tensor = torch.tensor(choice_logprobs)
     log_probs_tensor = log_probs_tensor - log_probs_tensor.logsumexp(0)

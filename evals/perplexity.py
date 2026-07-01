@@ -1,17 +1,21 @@
 import torch
+import torch.nn.functional as F
 import math
 from datasets import load_dataset
 from tqdm import tqdm
 import json
 from pathlib import Path
+from omegaconf import OmegaConf
 
 RESULTS_DIR = Path("results")
 RESULTS_DIR.mkdir(exist_ok=True)
 
+cfg = OmegaConf.load("config.yaml")
+
 MODEL_NAME = "HuggingFaceTB/SmolLM-135M"
 DTYPE = torch.bfloat16 if torch.cuda.is_available() else torch.float32
-MAX_LENGTH = 1024
-STRIDE = 512
+MAX_LENGTH = cfg.MAX_SEQ_LENGTH
+STRIDE = max(1, MAX_LENGTH // 2)
 
 def sliding_window_ppl(model, tokenizer, texts, max_length=MAX_LENGTH, stride=STRIDE):
     total_nll = 0.0
@@ -19,7 +23,7 @@ def sliding_window_ppl(model, tokenizer, texts, max_length=MAX_LENGTH, stride=ST
 
     with torch.no_grad():
         for text in tqdm(texts, desc="Computing perplexity"):
-            encodings = tokenizer(text, return_tensors="pt", truncation=True, max_length=max_length * 2)
+            encodings = tokenizer(text, return_tensors="pt")
             input_ids = encodings.input_ids.to(model.device)
             seq_len = input_ids.size(1)
 
@@ -34,15 +38,23 @@ def sliding_window_ppl(model, tokenizer, texts, max_length=MAX_LENGTH, stride=ST
                 chunk_ids = input_ids[:, begin:end]
                 labels = chunk_ids.clone()
                 if begin > 0:
-                    labels[:, :stride] = -100
+                    prev_tokens = max(0, max_length - stride)
+                    labels[:, :prev_tokens] = -100
                 elif end < seq_len:
                     pass
 
-                outputs = model(chunk_ids, labels=labels)
-                loss = outputs.loss
-                valid = (labels != -100).sum().item()
+                outputs = model(input_ids=chunk_ids, use_cache=False)
+                shift_logits = outputs.logits[:, :-1, :].contiguous().float()
+                shift_labels = labels[:, 1:].contiguous()
+                valid = (labels[:, 1:] != -100).sum().item()
                 if valid > 0:
-                    nll += loss.item() * valid
+                    loss = F.cross_entropy(
+                        shift_logits.view(-1, shift_logits.size(-1)),
+                        shift_labels.view(-1),
+                        ignore_index=-100,
+                        reduction="sum",
+                    )
+                    nll += loss.item()
                     n_tokens += valid
 
                 if end == seq_len:
@@ -52,6 +64,9 @@ def sliding_window_ppl(model, tokenizer, texts, max_length=MAX_LENGTH, stride=ST
                 total_nll += nll
                 total_tokens += n_tokens
 
+    if total_tokens == 0:
+        raise ValueError("No valid tokens found while computing perplexity.")
+
     avg_nll = total_nll / total_tokens
     ppl = math.exp(avg_nll)
     return ppl, avg_nll, total_tokens
@@ -59,6 +74,7 @@ def sliding_window_ppl(model, tokenizer, texts, max_length=MAX_LENGTH, stride=ST
 
 def run_perplexity(model, tokenizer, output_suffix="untrained"):
     print(f"Evaluating perplexity ...")
+    model.eval()
 
     datasets_to_eval = [
         ("PubMed Abstracts", "uiyunkim-hub/pubmed-abstract", "abstract", 1000),
