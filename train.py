@@ -126,8 +126,8 @@ def configure_trainer(model, tokenizer, train_dataset, val_dataset):
             output_dir="./SmolLM-135M_Med",
 
             num_train_epochs=1,
-            per_device_train_batch_size=16,
-            gradient_accumulation_steps=2,
+            per_device_train_batch_size=128,
+            gradient_accumulation_steps=1,
 
             learning_rate=5e-5,
             embedding_learning_rate=5e-6,

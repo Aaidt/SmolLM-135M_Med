@@ -6,7 +6,7 @@ cfg = OmegaConf.load("config.yaml")
 SEED = cfg.SEED
 MAX_SEQ_LENGTH = cfg.MAX_SEQ_LENGTH
 MODEL_NAME = cfg.MODEL_NAME
-# DTYPE = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+DTYPE = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
 
 
 def load_model():
