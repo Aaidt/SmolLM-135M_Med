@@ -10,8 +10,52 @@ SEED = cfg.SEED
 MAX_SEQ_LENGTH = cfg.MAX_SEQ_LENGTH
 
 
+def tokenize_dataset_for_packing(dataset, tokenizer, split_name):
+    print(f"  Tokenizing {split_name} dataset for packing ...")
+    chunk_size = MAX_SEQ_LENGTH
+    original_size = len(dataset)
+
+    def tokenize_examples(batch):
+        input_ids = []
+        attention_mask = []
+        labels = []
+
+        for text in batch["text"]:
+            text = text.strip()
+            if not text:
+                continue
+
+            token_ids = tokenizer.encode(text, add_special_tokens=False)
+            for start in range(0, len(token_ids), chunk_size):
+                chunk_ids = token_ids[start:start + chunk_size]
+                if not chunk_ids:
+                    continue
+
+                input_ids.append(chunk_ids)
+                attention_mask.append([1] * len(chunk_ids))
+                labels.append(list(chunk_ids))
+
+        return {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "labels": labels,
+        }
+
+    dataset = dataset.map(
+        tokenize_examples,
+        batched=True,
+        remove_columns=dataset.column_names,
+        desc=f"Tokenizing {split_name} dataset",
+    )
+
+    print(f"  {split_name.capitalize()} sequences: {original_size:>8,} -> {len(dataset):>8,}")
+    if len(dataset) == 0:
+        raise ValueError(f"{split_name} dataset is empty after tokenization.")
+    return dataset
+
+
 def add_lora_adapters(model):
-    print("  Adding LoRA adapters ...")
+    print("Adding LoRA adapters ...")
     model = FastLanguageModel.get_peft_model(
         model,
         r=32,
@@ -39,10 +83,8 @@ def add_lora_adapters(model):
     return model
 
 
-def configure_trainer(model, tokenizer, train_dataset, val_dataset):
+def configure_trainer(model, train_dataset, val_dataset):
     print("  Configuring trainer ...")
-    if tokenizer is None:
-        raise ValueError("load_model() returned tokenizer=None; UnslothTrainer requires a tokenizer.")
 
     training_args = UnslothTrainingArguments(
         output_dir="./SmolLM-135M_Med",
@@ -58,7 +100,6 @@ def configure_trainer(model, tokenizer, train_dataset, val_dataset):
         max_grad_norm=1.0,
         max_length=MAX_SEQ_LENGTH,
         packing=True,
-        dataset_text_field="text",
         dataset_num_proc=2,
         eval_strategy="steps",
         eval_steps=250,
@@ -75,7 +116,6 @@ def configure_trainer(model, tokenizer, train_dataset, val_dataset):
 
     trainer = UnslothTrainer(
         model=model,
-        tokenizer=tokenizer,
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
         args=training_args,
@@ -103,8 +143,10 @@ def run_training():
 
     train_dataset, val_dataset = run_data()
     model, tokenizer = load_model()
+    train_dataset = tokenize_dataset_for_packing(train_dataset, tokenizer, "train")
+    val_dataset = tokenize_dataset_for_packing(val_dataset, tokenizer, "eval")
     model = add_lora_adapters(model)
-    trainer = configure_trainer(model, tokenizer, train_dataset, val_dataset)
+    trainer = configure_trainer(model, train_dataset, val_dataset)
 
     print("  Starting training ...")
     print("-" * 58)
