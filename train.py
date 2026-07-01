@@ -23,7 +23,7 @@ def add_lora_adapters(model):
         lora_alpha=32,
         lora_dropout=0,
         bias="none",
-        use_gradient_checkpointing=True,
+        use_gradient_checkpointing="unsloth",
         random_state=SEED,
         use_rslora=False,
     )
@@ -39,7 +39,7 @@ def add_lora_adapters(model):
     return model
 
 
-def configure_trainer(model, tokenizer, train_dataset, val_dataset):
+def configure_trainer(model, train_dataset, val_dataset):
     print("  Configuring trainer ...")
 
     training_args = UnslothTrainingArguments(
@@ -47,8 +47,8 @@ def configure_trainer(model, tokenizer, train_dataset, val_dataset):
         num_train_epochs=2,
         per_device_train_batch_size=16,
         gradient_accumulation_steps=2,
-        learning_rate=2e-4,
-        embedding_learning_rate=2e-5,
+        learning_rate=5e-5,
+        embedding_learning_rate=5e-6,
         warmup_steps=50,
         lr_scheduler_type="cosine",
         optim="adamw_8bit",
@@ -59,14 +59,14 @@ def configure_trainer(model, tokenizer, train_dataset, val_dataset):
         dataset_text_field="text",
         dataset_num_proc=2,
         eval_strategy="steps",
-        eval_steps=25,
+        eval_steps=250,
         per_device_eval_batch_size=16,
         save_strategy="steps",
-        save_steps=50,
+        save_steps=500,
         save_total_limit=3,
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
-        logging_steps=10,
+        logging_steps=25,
         seed=SEED,
         report_to="none",
     )
@@ -101,7 +101,7 @@ def run_training():
     train_dataset, val_dataset = run_data()
     model, tokenizer = load_model()
     model = add_lora_adapters(model)
-    trainer = configure_trainer(model, tokenizer, train_dataset, val_dataset)
+    trainer = configure_trainer(model, train_dataset, val_dataset)
 
     print("  Starting training ...")
     print("-" * 58)

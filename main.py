@@ -42,7 +42,7 @@ def main():
     run_all_benchmarks(model, tokenizer, output_suffix="untrained")
 
     print("\n[4] Running perplexity on untrained model...")
-    run_perplexity(model, tokenizer, output_suffix="untrained")
+    run_perplexity(output_suffix="untrained")
 
     print("\n[5] Starting training...")
     model, tokenizer = run_training()
@@ -51,7 +51,7 @@ def main():
     run_all_benchmarks(model, tokenizer, output_suffix="trained")
 
     print("\n[7] Running perplexity on trained model...")
-    run_perplexity(model, tokenizer, output_suffix="trained")
+    run_perplexity(output_suffix="trained")
 
     print("\nAll done! Results saved to ./results/")
 

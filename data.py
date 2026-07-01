@@ -4,7 +4,7 @@ from tqdm import tqdm
 from pathlib import Path
 from transformers import AutoTokenizer
 import random
-
+import time
 
 def run_data():
     cfg = OmegaConf.load("config.yaml")
@@ -19,17 +19,17 @@ def run_data():
     SPLIT = 0.1
     random.seed(SEED)
 
-    PUBMED_ABSTRACT_DOCS = 6000
-    PMC_DOCS = 2000
-    MEDLINE_DOCS = 1000
-    FINEWEB_DOCS = 1000
+    PUBMED_ABSTRACT_DOCS = 120_000
+    PMC_DOCS = 40_000
+    MEDLINE_DOCS = 20_000
+    FINEWEB_DOCS = 20_000
 
-    TOTAL = 10_000
+    total_tokens = 0
 
     tokenizer = AutoTokenizer.from_pretrained("HuggingFaceTB/SmolLM-135M")
 
     if train_file.exists() and val_file.exists() and train_file.stat().st_size > 0 and val_file.stat().st_size > 0:
-        print(f"Dataset files already exist. Skipping data creation.\n")
+        print(f"Dataset files already exist. Dataset phase done!!!.\n")
     else:
         print(f"Creating dataset files...\n")
         datasets = [
@@ -41,10 +41,11 @@ def run_data():
 
         total_samples = sum(n for _, _, _, n in datasets)
 
+        start_time = time.time()
+
         with open(train_file, "w") as train, open(val_file, "w") as val:
             with tqdm(total=total_samples, desc="Total progress", unit=" samples") as total_pbar:
 
-                buffer = []
                 for name, loader, key, max_samples in datasets:
                     ds = loader()
 
@@ -56,17 +57,18 @@ def run_data():
 
                         text = item[key].strip()
                         ids = tokenizer.encode(text, add_special_tokens=False)
-                        buffer.extend(ids)
+                        ids.append(tokenizer.eos_token_id)
+                        total_tokens += len(ids)
 
-                        while len(buffer) >= CHUNK_SIZE:
-                            chunk = buffer[:CHUNK_SIZE]
-                            out = val if random.random() < SPLIT else train
-                            out.write(tokenizer.decode(chunk) + "\n")
-                            buffer = buffer[CHUNK_SIZE:]
+                        out = val if random.random() < SPLIT else train
+                        out.write(text + "\n")
 
                         inner_pbar.update(1)
                         total_pbar.update(1)
                     inner_pbar.close()
+        
+        total_time = time.time() - start_time
+        print(f"========== TOTAL NUMBER OF TOKENS: {total_tokens} | TIME TAKEN TO LOAD DATA: {total_time} ============")
 
     print(f"Converting dataset into Dataset format for Unsloth...\n")
     datasets = load_dataset(
@@ -77,8 +79,8 @@ def run_data():
         },
     )
 
-    train_ds = datasets["train"]
-    val_ds = datasets["validation"]
+    train_ds = datasets["train"].shuffle(seed=SEED)
+    val_ds = datasets["validation"].shuffle(seed=SEED)
 
     print(f"Data phase completed.")
     return train_ds, val_ds
