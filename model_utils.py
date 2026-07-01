@@ -6,7 +6,7 @@ cfg = OmegaConf.load("config.yaml")
 SEED = cfg.SEED
 MAX_SEQ_LENGTH = cfg.MAX_SEQ_LENGTH
 MODEL_NAME = cfg.MODEL_NAME
-DTYPE = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+# DTYPE = torch.bfloat16 if torch.cuda.is_available() else torch.float32
 
 
 def load_model():
@@ -28,7 +28,7 @@ def load_model():
         model, tokenizer = FastLanguageModel.from_pretrained(
             model_name=MODEL_NAME,
             max_seq_length=MAX_SEQ_LENGTH,
-            dtype=DTYPE,
+            dtype=None,
             load_in_4bit=True,
         )
     except torch.cuda.OutOfMemoryError as e:
