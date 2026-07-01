@@ -137,7 +137,6 @@ uv run main.py
 
 Install with uv:
 
-
 uv sync
 ```
 
