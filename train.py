@@ -143,16 +143,16 @@ def configure_trainer(model, tokenizer, train_dataset, val_dataset):
             dataset_num_proc=2,
 
             eval_strategy="steps",
-            eval_steps=250,
+            eval_steps=1000,
             per_device_eval_batch_size=16,
 
             save_strategy="steps",
-            save_steps=500,
+            save_steps=1000,
             save_total_limit=3,
             load_best_model_at_end=True,
             metric_for_best_model="eval_loss",
 
-            logging_steps=25,
+            logging_steps=100,
             seed=SEED,
 
             report_to="none",
