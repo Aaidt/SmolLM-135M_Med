@@ -124,50 +124,50 @@ def eval_medmcqa(model, tokenizer, max_samples=None):
     return {"accuracy": round(accuracy, 4), "correct": correct, "total": total, "details": results}
 
 
-def eval_medqa(model, tokenizer, max_samples=None):
-    """MedQA (USMLE): 4-option medical board questions."""
-    print("\n=== MedQA (USMLE) ===")
-    ds = load_dataset("bigbio/med_qa", split="train")
-    if max_samples:
-        ds = ds.select(range(min(max_samples, len(ds))))
+# def eval_medqa(model, tokenizer, max_samples=None):
+#     """MedQA (USMLE): 4-option medical board questions."""
+#     print("\n=== MedQA (USMLE) ===")
+#     ds = load_dataset("bigbio/med_qa", split="train")
+#     if max_samples:
+#         ds = ds.select(range(min(max_samples, len(ds))))
 
-    correct = 0
-    total = 0
-    results = []
-    choice_labels = ["A", "B", "C", "D", "E"]
+#     correct = 0
+#     total = 0
+#     results = []
+#     choice_labels = ["A", "B", "C", "D", "E"]
 
-    for item in tqdm(ds, desc="MedQA"):
-        item = dict(item)
-        question = item["question"]
-        options = item["options"]
-        answer_key = item["answer"].strip().upper()
+#     for item in tqdm(ds, desc="MedQA"):
+#         item = dict(item)
+#         question = item["question"]
+#         options = item["options"]
+#         answer_key = item["answer"].strip().upper()
 
-        prompt_parts = [f"Question: {question}"]
-        valid_labels = []
-        for opt in options:
-            label = opt["key"].strip().upper()
-            value = opt["value"]
-            prompt_parts.append(f"{label}: {value}")
-            valid_labels.append(label)
-        prompt = "\n".join(prompt_parts) + "\nAnswer:"
+#         prompt_parts = [f"Question: {question}"]
+#         valid_labels = []
+#         for opt in options:
+#             label = opt["key"].strip().upper()
+#             value = opt["value"]
+#             prompt_parts.append(f"{label}: {value}")
+#             valid_labels.append(label)
+#         prompt = "\n".join(prompt_parts) + "\nAnswer:"
 
-        log_probs = choice_log_probs(model, tokenizer, prompt, valid_labels)
-        predicted = valid_labels[int(torch.tensor(log_probs).argmax().item())]
-        is_correct = predicted == answer_key
-        if is_correct:
-            correct += 1
-        total += 1
+#         log_probs = choice_log_probs(model, tokenizer, prompt, valid_labels)
+#         predicted = valid_labels[int(torch.tensor(log_probs).argmax().item())]
+#         is_correct = predicted == answer_key
+#         if is_correct:
+#             correct += 1
+#         total += 1
 
-        results.append({
-            "question": question[:100],
-            "true_answer": answer_key,
-            "predicted": predicted,
-            "correct": is_correct,
-        })
+#         results.append({
+#             "question": question[:100],
+#             "true_answer": answer_key,
+#             "predicted": predicted,
+#             "correct": is_correct,
+#         })
 
-    accuracy = correct / total if total > 0 else 0.0
-    print(f"  Accuracy: {accuracy:.4f} ({correct}/{total})")
-    return {"accuracy": round(accuracy, 4), "correct": correct, "total": total, "details": results}
+#     accuracy = correct / total if total > 0 else 0.0
+#     print(f"  Accuracy: {accuracy:.4f} ({correct}/{total})")
+#     return {"accuracy": round(accuracy, 4), "correct": correct, "total": total, "details": results}
 
 
 # def eval_medication_qa(model, tokenizer, max_samples=None):
@@ -266,7 +266,7 @@ def run_all_benchmarks(model, tokenizer, output_suffix="untrained"):
     benchmarks = [
         ("pubmedqa", eval_pubmedqa, 200),
         ("medmcqa", eval_medmcqa, 200),
-        ("medqa", eval_medqa, 200),
+        # ("medqa", eval_medqa, 200),
         # ("medication_qa", eval_medication_qa, 200),
         # ("bioasq_yesno", eval_bioasq, 200),
     ]
