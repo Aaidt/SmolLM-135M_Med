@@ -39,8 +39,10 @@ def add_lora_adapters(model):
     return model
 
 
-def configure_trainer(model, train_dataset, val_dataset):
+def configure_trainer(model, tokenizer, train_dataset, val_dataset):
     print("  Configuring trainer ...")
+    if tokenizer is None:
+        raise ValueError("load_model() returned tokenizer=None; UnslothTrainer requires a tokenizer.")
 
     training_args = UnslothTrainingArguments(
         output_dir="./SmolLM-135M_Med",
@@ -73,6 +75,7 @@ def configure_trainer(model, train_dataset, val_dataset):
 
     trainer = UnslothTrainer(
         model=model,
+        tokenizer=tokenizer,
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
         args=training_args,
@@ -101,7 +104,7 @@ def run_training():
     train_dataset, val_dataset = run_data()
     model, tokenizer = load_model()
     model = add_lora_adapters(model)
-    trainer = configure_trainer(model, train_dataset, val_dataset)
+    trainer = configure_trainer(model, tokenizer, train_dataset, val_dataset)
 
     print("  Starting training ...")
     print("-" * 58)

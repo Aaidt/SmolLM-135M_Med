@@ -1,0 +1,15 @@
+{
+  "model": "HuggingFaceTB/SmolLM-135M",
+  "benchmarks": {
+    "pubmedqa": {
+      "accuracy": 0.49,
+      "correct": 98,
+      "total": 200
+    },
+    "medmcqa": {
+      "accuracy": 0.2,
+      "correct": 40,
+      "total": 200
+    }
+  }
+}
