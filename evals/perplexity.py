@@ -4,7 +4,6 @@ from datasets import load_dataset
 from tqdm import tqdm
 import json
 from pathlib import Path
-from main import load_model
 
 RESULTS_DIR = Path("results")
 RESULTS_DIR.mkdir(exist_ok=True)
@@ -58,11 +57,8 @@ def sliding_window_ppl(model, tokenizer, texts, max_length=MAX_LENGTH, stride=ST
     return ppl, avg_nll, total_tokens
 
 
-def run_perplexity(output_suffix="untrained"):
+def run_perplexity(model, tokenizer, output_suffix="untrained"):
     print(f"Evaluating perplexity ...")
-    print(f"Loading model: {MODEL_NAME}")
-    model, tokenizer = load_model()
-    print(f"Model on device: {model.device}")
 
     datasets_to_eval = [
         ("PubMed Abstracts", "uiyunkim-hub/pubmed-abstract", "abstract", 1000),
@@ -98,7 +94,3 @@ def run_perplexity(output_suffix="untrained"):
         json.dump(results, f, indent=2)
     print(f"\nResults saved to {out_path}")
     return results
-
-
-if __name__ == "__main__":
-    run_perplexity()

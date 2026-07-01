@@ -2,7 +2,7 @@ from data import run_data
 from unsloth import FastLanguageModel
 from unsloth.trainer import UnslothTrainer, UnslothTrainingArguments
 from omegaconf import OmegaConf
-from main import load_model
+from model_utils import load_model
 
 cfg = OmegaConf.load("config.yaml")
 
@@ -115,9 +115,5 @@ def run_training():
     return model, tokenizer
 
 
-def main():
-    run_training()
-
-
 if __name__ == "__main__":
-    main()
+    run_training()
