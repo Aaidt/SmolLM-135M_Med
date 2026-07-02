@@ -169,3 +169,16 @@ uv sync
 │   └── perplexity.py    # Sliding-window perplexity
 └── results/             # Evaluation outputs (JSON: _untrained / _trained)
 ```
+
+## Training results:
+
+| Metric      | Untrained |   Trained |          Change |
+| ----------- | --------: | --------: | --------------: |
+| PubMed PPL  |     18.76 | **15.03** |      **-19.9%** |
+| Medline PPL |     14.24 | **11.39** |      **-20.0%** |
+| PubMedQA    | **49.5%** |     41.5% | **-8.0 points** |
+| MedMCQA     |     20.0% | **22.0%** |     +2.0 points |
+
+
+The training achieved its primary objective—domain adaptation—as shown by the consistent ~20% perplexity reduction. 
+However, it did not translate into better downstream medical QA.
