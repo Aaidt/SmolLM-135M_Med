@@ -12,44 +12,90 @@ cfg = OmegaConf.load("config.yaml")
 
 MODEL_NAME = "HuggingFaceTB/SmolLM-135M"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-DTYPE = torch.bfloat16 if torch.cuda.is_available() else torch.float32
+DTYPE = torch.bfloat16 if torch.cuda.is_available() else torch.float16
 MAX_SEQ_LENGTH = cfg.MAX_SEQ_LENGTH
 
 
+def _choice_token_start(full_ids, prompt, tokenizer):
+    """Index in full_ids where choice tokens begin (handles BPE merges at boundary)."""
+    for start in range(len(full_ids) + 1):
+        if tokenizer.decode(full_ids[:start]) == prompt:
+            return start
+    return len(full_ids)
+
+
+def _sequence_log_prob(log_probs, token_ids, start_idx):
+    """Sum log P(token_i | tokens_<i) for tokens at positions [start_idx, end)."""
+    return sum(
+        log_probs[pos - 1, token_ids[pos]].item()
+        for pos in range(start_idx, len(token_ids))
+    )
+
+
 def choice_log_probs(model, tokenizer, prompt, choices):
-    """Return log probability of each choice given the prompt."""
-    encoded = tokenizer(
-        prompt,
-        return_tensors="pt",
-        truncation=True,
-        max_length=MAX_SEQ_LENGTH,
-    ).to(model.device)
+    """Return log probability of each choice given the prompt.
 
-    choice_logprobs = []
+    Uses one forward pass per choice: encode prompt+choice as a single sequence,
+    then sum the log-prob of each choice token from the logits at the prior position.
+    All choices are batched into a single forward pass when possible.
+    """
+    sequences = []
+    start_indices = []
+
+    for choice in choices:
+        if not choice:
+            sequences.append(None)
+            start_indices.append(None)
+            continue
+
+        full_ids = tokenizer(
+            prompt + choice,
+            truncation=True,
+            max_length=MAX_SEQ_LENGTH,
+        ).input_ids
+
+        start = _choice_token_start(full_ids, prompt, tokenizer)
+        if start >= len(full_ids):
+            sequences.append(None)
+            start_indices.append(None)
+            continue
+
+        sequences.append(full_ids)
+        start_indices.append(start)
+
+    choice_logprobs = [-float("inf")] * len(choices)
+    valid = [
+        (i, seq, start)
+        for i, (seq, start) in enumerate(zip(sequences, start_indices))
+        if seq is not None
+    ]
+    if not valid:
+        return choice_logprobs
+
+    pad_id = tokenizer.pad_token_id
+    if pad_id is None:
+        pad_id = tokenizer.eos_token_id
+
+    max_len = max(len(seq) for _, seq, _ in valid)
+    batch_ids, batch_mask = [], []
+    for _, seq, _ in valid:
+        pad_len = max_len - len(seq)
+        batch_ids.append(seq + [pad_id] * pad_len)
+        batch_mask.append([1] * len(seq) + [0] * pad_len)
+
+    input_ids = torch.tensor(batch_ids, device=model.device)
+    attention_mask = torch.tensor(batch_mask, device=model.device)
+
     with torch.no_grad():
-        outputs = model(**encoded)
-        log_probs = torch.log_softmax(outputs.logits[0, -1, :].float(), dim=-1)
+        log_probs = torch.log_softmax(
+            model(input_ids, attention_mask=attention_mask).logits.float(),
+            dim=-1,
+        )
 
-        for choice in choices:
-            choice_ids = tokenizer.encode(choice, add_special_tokens=False)
-            if not choice_ids:
-                choice_logprobs.append(-float("inf"))
-                continue
-
-            lp = log_probs[choice_ids[0]].item()
-            for i, cid in enumerate(choice_ids[1:], start=1):
-                sub_prompt = prompt + tokenizer.decode(choice_ids[:i])
-                sub_encoded = tokenizer(
-                    sub_prompt,
-                    return_tensors="pt",
-                    truncation=True,
-                    max_length=MAX_SEQ_LENGTH,
-                ).to(model.device)
-                sub_outputs = model(**sub_encoded)
-                sub_log_probs = torch.log_softmax(sub_outputs.logits[0, -1, :].float(), dim=-1)
-                lp += sub_log_probs[cid].item()
-
-            choice_logprobs.append(lp)
+        for batch_idx, (choice_idx, seq, start) in enumerate(valid):
+            choice_logprobs[choice_idx] = _sequence_log_prob(
+                log_probs[batch_idx], seq, start
+            )
 
     log_probs_tensor = torch.tensor(choice_logprobs)
     log_probs_tensor = log_probs_tensor - log_probs_tensor.logsumexp(0)
@@ -145,8 +191,8 @@ def run_all_benchmarks(model, tokenizer, output_suffix="untrained"):
     all_results = {"model": MODEL_NAME, "benchmarks": {}}
 
     benchmarks = [
-        ("pubmedqa", eval_pubmedqa, 200),
-        ("medmcqa", eval_medmcqa, 200),
+        ("pubmedqa", eval_pubmedqa, 1000),
+        ("medmcqa", eval_medmcqa, 1000),
         # ("medqa", eval_medqa, 200),
         # ("medication_qa", eval_medication_qa, 200),
         # ("bioasq_yesno", eval_bioasq, 200),
