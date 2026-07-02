@@ -2,14 +2,14 @@
   "model": "HuggingFaceTB/SmolLM-135M",
   "perplexity_results": {
     "PubMed Abstracts": {
-      "perplexity": 18.7604,
-      "avg_nll": 2.9317,
+      "perplexity": 15.0332,
+      "avg_nll": 2.7103,
       "num_tokens": 215417,
       "num_samples": 1000
     },
     "Medline": {
-      "perplexity": 14.2411,
-      "avg_nll": 2.6561,
+      "perplexity": 11.3852,
+      "avg_nll": 2.4323,
       "num_tokens": 242188,
       "num_samples": 1000
     }
